@@ -19,9 +19,11 @@
 #include <vector>
 #include <fstream>
 #include <dirent.h>
+#include <cmath>
 
 #include "scan_functions.h"                                                     //qui sono definite le funzioni
 
+#include "TGraph2D.h"
 #include "TSpectrum.h"
 #include "TNtuple.h"
 #include "TFile.h"
@@ -38,7 +40,11 @@ using namespace std;
 
 
 int main ( int argc, char* argv[] ) {
-    
+
+vector<double> x_vec, y_vec, seg;
+
+
+
 //----  PARAMETRI DI SCANSIONE --------------------------------------------------------------------------------------------------
     
     int r_min=0, r_max=0, h_min=0, h_max=0, r_step=0, h_step=0;
@@ -54,18 +60,21 @@ int main ( int argc, char* argv[] ) {
     cin>>h_max;
     cout<<"Inserie h step: ";
     cin>>h_step;
-    
+
+
 //---------------------------------------------------------------------------------------------------------------------------------        
     
-    int dr = (r_max - r_min)/r_step;                                                            //inizializzo l'isto2d 
+   /* int dr = (r_max - r_min)/r_step;                                                            //inizializzo l'isto2d 
     int dh = (h_max - h_min)/h_step;                                                            //LE H SONO NEGATIVE COSI' DA RISPETTARE
     TH2D* top_surface = new TH2D("top", "top surface",dr+1,r_min,r_max+r_step,dh+1,-h_max,-h_min+r_step);         //LA POSIZIONE FISICA DEL RIVELATORE NEL PLOT (VEDERE IL FILL DI TH2D)
-    //IL CENTRO DEL RIVELATORE E' h_max, MENTRE IL BORDO E' h_min
+    //IL CENTRO DEL RIVELATORE E' h_max, MENTRE IL BORDO E' h_min    */
     
 //---- INPUT E OUTPUT PATH ---------------------------------------------------------------------------------------------------------
     
     string PATH_IN;									    //path dei file da analizzare
     string PATH_OUT;									    //path dei file da scrivere
+
+		int a;
 
     if( argc != 3 )									    //la main prende come argomento il path della cartella dove sono i dati
     {
@@ -139,10 +148,15 @@ int main ( int argc, char* argv[] ) {
                 TH1D* histo=make_histo(filename,to_string(h),to_string(r),0,0);                            //creo l'istogramma del file .Spe
             
                 double segnale = comp_signal(histo, out_h1d);                                               //computo il segnale
-            
-                top_surface -> Fill(r,-h,segnale);                                                         //riempio l'istogramma 2D
+            	seg.push_back(segnale);
+               // top_surface -> Fill(r,-h,segnale);                                                         //riempio l'istogramma 2D
                 //PER LE H NEGATIVE VEDERE LE PRIME RIGHE DOVE INIZIALIZZO top_surface
-                
+
+                double x = h*cos(r * M_PI / 180.) + 2*(h_max - h_min);
+		x_vec.push_back(x);
+		double y = h*sin(r * M_PI / 180.) + 2*(h_max - h_min);
+                y_vec.push_back(y);
+
 //-------------------------------------------------------------------------------------------------------------------------------------------
         
                 out_signal<<" "<<h<<"   "<<r<<" ----> " <<segnale<<endl;                                         //scrivo i segnali nel file txt
@@ -166,15 +180,15 @@ int main ( int argc, char* argv[] ) {
     cout<<"File 'top_signal.txt' creato!\n\n";
     
     //FILE CON ISTO2D
-    string h2d_name = PATH_OUT + "/histo2D_top.root";
+    string h2d_name = PATH_OUT + "/Graph2D_top.root";
     TFile* out_h2d = new TFile(h2d_name.c_str(), "RECREATE");                                         //crea il file root con TH2D-
-    
+    TGraph2D * top_surface = new TGraph2D(x_vec.size(),&x_vec[0],&y_vec[0],&seg[0] );
     TCanvas* c = new TCanvas();
 
     top_surface -> GetXaxis()->SetTitle("Angle [Degree]");
     top_surface -> GetYaxis()->SetTitle("Position [0.1*mm]");
     top_surface -> GetZaxis()->SetTitle("Signal");
-    top_surface -> Draw("SURF1 POL");  
+    top_surface -> Draw("A*");
 
     c -> Write();
     out_h2d -> Close();
